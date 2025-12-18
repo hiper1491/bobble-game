@@ -390,7 +390,7 @@
                 下一個: <canvas id="nextBubblePreview"></canvas>
             </div>
             <div class="level-display">
-                等級: <span class="level-value" id="level">1</span>
+                關卡: <span class="level-value" id="level">1</span> / 5
             </div>
         </div>
 
@@ -821,10 +821,31 @@
                     this.life = 1;
                     this.decay = 0.03 + Math.random() * 0.02;
                     this.gravity = 0;
+                } else if (type === 'confetti') {
+                    // 慶祝紙片 - 從上方飄落
+                    this.vx = (Math.random() - 0.5) * 6;
+                    this.vy = -8 - Math.random() * 6;
+                    this.radius = 6 + Math.random() * 6;
+                    this.life = 1;
+                    this.decay = 0.005;
+                    this.gravity = 0.15;
+                    this.width = 8 + Math.random() * 8;
+                    this.height = 6 + Math.random() * 6;
+                } else if (type === 'firework') {
+                    // 煙火粒子
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 3 + Math.random() * 5;
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed - 2;
+                    this.radius = 3 + Math.random() * 4;
+                    this.life = 1;
+                    this.decay = 0.015 + Math.random() * 0.01;
+                    this.gravity = 0.08;
+                    this.trail = [];
                 }
 
                 this.rotation = Math.random() * Math.PI * 2;
-                this.rotationSpeed = (Math.random() - 0.5) * 0.2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.3;
             }
 
             update() {
@@ -853,6 +874,23 @@
                         ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
                     }
                     ctx.closePath();
+                    ctx.fill();
+                } else if (this.type === 'confetti') {
+                    // 紙片形狀 - 長方形旋轉
+                    ctx.fillStyle = this.color;
+                    ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                    // 加一點光澤
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.fillRect(-this.width / 2, -this.height / 2, this.width / 2, this.height / 2);
+                } else if (this.type === 'firework') {
+                    // 煙火粒子 - 帶拖尾的圓形
+                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.radius);
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(0.3, this.color);
+                    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                     ctx.fill();
                 } else {
                     // 圓形粒子帶漸層
@@ -903,6 +941,52 @@
                 });
             }
 
+            // 通關慶祝效果
+            celebrate(canvasWidth, canvasHeight) {
+                const colors = ['#E74C3C', '#F1C40F', '#27AE60', '#3498DB', '#9B59B6', '#E91E63', '#FF9800'];
+
+                // 持續產生煙火和紙片效果
+                const createBurst = (delay) => {
+                    setTimeout(() => {
+                        // 隨機位置的煙火爆炸
+                        const x = 50 + Math.random() * (canvasWidth - 100);
+                        const y = 100 + Math.random() * 200;
+                        const color = colors[Math.floor(Math.random() * colors.length)];
+
+                        // 煙火粒子
+                        for (let i = 0; i < 25; i++) {
+                            this.particles.push(new Particle(x, y, color, 'firework'));
+                        }
+                        // 閃爍星星
+                        for (let i = 0; i < 10; i++) {
+                            this.particles.push(new Particle(x, y, '#ffffff', 'sparkle'));
+                        }
+                    }, delay);
+                };
+
+                // 紙片從上方飄落
+                const createConfetti = (delay) => {
+                    setTimeout(() => {
+                        for (let i = 0; i < 8; i++) {
+                            const x = Math.random() * canvasWidth;
+                            const y = Math.random() * 100;
+                            const color = colors[Math.floor(Math.random() * colors.length)];
+                            this.particles.push(new Particle(x, y, color, 'confetti'));
+                        }
+                    }, delay);
+                };
+
+                // 產生多波煙火
+                for (let i = 0; i < 8; i++) {
+                    createBurst(i * 300);
+                }
+
+                // 持續產生紙片
+                for (let i = 0; i < 20; i++) {
+                    createConfetti(i * 150);
+                }
+            }
+
             update() {
                 this.particles = this.particles.filter(p => p.update());
             }
@@ -916,14 +1000,12 @@
             }
         }
 
-        // 泡泡顏色配置（高對比度 - 6色）
+        // 泡泡顏色配置（4色 - 較簡單）
         const BUBBLE_COLORS = [
             '#E74C3C', // 紅色
-            '#F39C12', // 橙色
             '#F1C40F', // 黃色
             '#27AE60', // 綠色
             '#3498DB', // 藍色
-            '#9B59B6', // 紫色
         ];
 
         // 遊戲配置
@@ -935,6 +1017,8 @@
             minMatchCount: 3,
             pointsPerBubble: 10,
             pointsPerDrop: 20,
+            maxLevel: 5,  // 最大關卡數
+            shootSpeed: 22,  // 發射速度（原本15）
         };
 
         class Bubble {
@@ -1041,7 +1125,7 @@
                 document.getElementById('gameOverOverlay').classList.remove('show');
 
                 // 初始化泡泡網格
-                const initialRows = 5;
+                const initialRows = 3;  // 減少初始行數（原本5）
                 for (let row = 0; row < CONFIG.rows; row++) {
                     this.grid[row] = [];
                     for (let col = 0; col < CONFIG.cols; col++) {
@@ -1135,7 +1219,7 @@
             shoot() {
                 if (this.currentBubble.isMoving) return;
 
-                const speed = 15;
+                const speed = CONFIG.shootSpeed;
                 this.currentBubble.vx = Math.cos(this.aimAngle) * speed;
                 this.currentBubble.vy = Math.sin(this.aimAngle) * speed;
                 this.currentBubble.isMoving = true;
@@ -1355,6 +1439,13 @@
                         this.level++;
                         document.getElementById('level').textContent = this.level;
                         this.sound.playLevelUp();
+
+                        // 檢查是否通關
+                        if (this.level > CONFIG.maxLevel) {
+                            this.gameOver(true);
+                            return;
+                        }
+
                         this.addNewRows();
                     }
                 }
@@ -1429,7 +1520,7 @@
             }
 
             addNewRows() {
-                const newRows = 3;
+                const newRows = 2;  // 每關新增行數減少（原本3）
                 for (let row = 0; row < newRows; row++) {
                     this.grid[row] = [];
                     for (let col = 0; col < CONFIG.cols; col++) {
@@ -1688,26 +1779,40 @@
                 const text = document.getElementById('gameOverText');
                 const scoreDisplay = document.getElementById('finalScore');
 
-                // 播放遊戲結束音效
-                if (!isWin) {
+                // 播放音效
+                if (isWin) {
+                    // 通關慶祝動畫
+                    this.particles.celebrate(this.canvas.width, this.canvas.height);
+                    this.sound.playLevelUp();
+                    // 額外播放一次慶祝音效（延遲）
+                    setTimeout(() => this.sound.playLevelUp(), 400);
+                    setTimeout(() => this.sound.playLevelUp(), 800);
+                } else {
                     this.sound.playGameOver();
                 }
 
-                // 檢查是否可以上排行榜
+                // 設定結束文字
                 if (this.score > 0 && leaderboard.isHighScore(this.score)) {
-                    // 延遲一下再顯示輸入框，讓玩家看到最終畫面
-                    setTimeout(() => {
-                        showNameInput(this.score);
-                    }, 500);
-
-                    text.textContent = '新紀錄！';
+                    text.textContent = isWin ? '通關 + 新紀錄！' : '新紀錄！';
                     scoreDisplay.textContent = `分數: ${this.score} (第 ${leaderboard.getRank(this.score)} 名)`;
                 } else {
-                    text.textContent = isWin ? '恭喜過關!' : '遊戲結束!';
+                    text.textContent = isWin ? '恭喜通關！全部 5 關完成！' : '遊戲結束!';
                     scoreDisplay.textContent = `最終分數: ${this.score}`;
                 }
 
-                overlay.classList.add('show');
+                // 通關時延遲顯示結算畫面，讓玩家看慶祝動畫
+                const showDelay = isWin ? 2000 : 0;
+
+                setTimeout(() => {
+                    overlay.classList.add('show');
+
+                    // 檢查是否可以上排行榜
+                    if (this.score > 0 && leaderboard.isHighScore(this.score)) {
+                        setTimeout(() => {
+                            showNameInput(this.score);
+                        }, 500);
+                    }
+                }, showDelay);
             }
 
             restart() {
