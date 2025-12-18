@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bobble - 泡泡射擊遊戲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 480px;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .score-display, .level-display {
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .score-value, .level-value {
+            color: #ffd700;
+            font-size: 24px;
+        }
+
+        .game-wrapper {
+            position: relative;
+            background: linear-gradient(180deg, #1e3a5f 0%, #0d1b2a 100%);
+            border-radius: 20px;
+            padding: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        #gameCanvas {
+            display: block;
+            border-radius: 15px;
+            cursor: crosshair;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
+        }
+
+        .next-bubble {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        #nextBubblePreview {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            border-radius: 15px;
+            gap: 20px;
+        }
+
+        .game-over-overlay.show {
+            display: flex;
+        }
+
+        .game-over-text {
+            color: #fff;
+            font-size: 36px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .final-score {
+            color: #ffd700;
+            font-size: 24px;
+        }
+
+        .instructions {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            text-align: center;
+            max-width: 480px;
+        }
+
+        .high-score-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            width: 480px;
+            padding: 10px 25px;
+            background: rgba(255, 215, 0, 0.15);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .high-score-display {
+            color: #ffd700;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .high-score-value {
+            color: #fff;
+            font-size: 20px;
+        }
+
+        /* 排行榜彈窗 */
+        .leaderboard-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .leaderboard-overlay.show {
+            display: flex;
+        }
+
+        .leaderboard-panel {
+            background: linear-gradient(180deg, #1e3a5f 0%, #0d1b2a 100%);
+            border-radius: 20px;
+            padding: 30px;
+            min-width: 350px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                        0 0 30px rgba(255, 215, 0, 0.2);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .leaderboard-title {
+            color: #ffd700;
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .leaderboard-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .leaderboard-item.top-3 {
+            background: rgba(255, 215, 0, 0.15);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .leaderboard-item.new-record {
+            animation: newRecord 0.5s ease infinite alternate;
+        }
+
+        @keyframes newRecord {
+            from { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+            to { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+        }
+
+        .leaderboard-rank {
+            font-size: 18px;
+            font-weight: bold;
+            width: 40px;
+        }
+
+        .leaderboard-rank.gold { color: #ffd700; }
+        .leaderboard-rank.silver { color: #c0c0c0; }
+        .leaderboard-rank.bronze { color: #cd7f32; }
+        .leaderboard-rank.normal { color: #888; }
+
+        .leaderboard-info {
+            flex: 1;
+            margin-left: 10px;
+        }
+
+        .leaderboard-name {
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .leaderboard-date {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+
+        .leaderboard-score {
+            color: #ffd700;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .leaderboard-empty {
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            padding: 30px;
+            font-style: italic;
+        }
+
+        .leaderboard-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .new-record-badge {
+            color: #ffd700;
+            font-size: 18px;
+            text-align: center;
+            margin-bottom: 15px;
+            animation: pulse 1s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+
+        /* 輸入名字彈窗 */
+        .name-input-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+
+        .name-input-overlay.show {
+            display: flex;
+        }
+
+        .name-input-panel {
+            background: linear-gradient(180deg, #1e3a5f 0%, #0d1b2a 100%);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .name-input-title {
+            color: #ffd700;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .name-input-score {
+            color: #fff;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .name-input-field {
+            width: 200px;
+            padding: 12px 15px;
+            font-size: 18px;
+            border: 2px solid rgba(255, 215, 0, 0.5);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            text-align: center;
+            outline: none;
+            margin-bottom: 20px;
+        }
+
+        .name-input-field:focus {
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .name-input-field::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- 最高分顯示 -->
+        <div class="high-score-bar">
+            <div class="high-score-display">
+                最高分: <span class="high-score-value" id="highScore">0</span>
+            </div>
+            <button class="btn btn-secondary" style="padding: 8px 20px; font-size: 14px;" onclick="showLeaderboard()">排行榜</button>
+        </div>
+
+        <div class="header">
+            <div class="score-display">
+                分數: <span class="score-value" id="score">0</span>
+            </div>
+            <div class="next-bubble">
+                下一個: <canvas id="nextBubblePreview"></canvas>
+            </div>
+            <div class="level-display">
+                等級: <span class="level-value" id="level">1</span>
+            </div>
+        </div>
+
+        <div class="game-wrapper">
+            <canvas id="gameCanvas" width="480" height="600"></canvas>
+            <div class="game-over-overlay" id="gameOverOverlay">
+                <div class="game-over-text" id="gameOverText">遊戲結束!</div>
+                <div class="final-score" id="finalScore">最終分數: 0</div>
+                <button class="btn btn-primary" onclick="game.restart()">重新開始</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="game.restart()">重新開始</button>
+            <button class="btn btn-secondary" onclick="game.togglePause()">暫停</button>
+            <button class="btn btn-secondary" id="soundBtn" onclick="toggleSound()">音效: 開</button>
+        </div>
+
+        <div class="instructions">
+            移動滑鼠瞄準，點擊發射泡泡。三個以上同色泡泡連在一起即可消除！
+        </div>
+    </div>
+
+    <!-- 排行榜彈窗 -->
+    <div class="leaderboard-overlay" id="leaderboardOverlay">
+        <div class="leaderboard-panel">
+            <div class="leaderboard-title">排行榜</div>
+            <ul class="leaderboard-list" id="leaderboardList">
+                <!-- 動態生成 -->
+            </ul>
+            <div class="leaderboard-buttons">
+                <button class="btn btn-primary" onclick="hideLeaderboard()">關閉</button>
+                <button class="btn btn-secondary" onclick="clearLeaderboard()">清除紀錄</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 輸入名字彈窗 -->
+    <div class="name-input-overlay" id="nameInputOverlay">
+        <div class="name-input-panel">
+            <div class="name-input-title">新紀錄！</div>
+            <div class="name-input-score" id="nameInputScore">分數: 0</div>
+            <input type="text" class="name-input-field" id="playerNameInput" placeholder="輸入你的名字" maxlength="10">
+            <div>
+                <button class="btn btn-primary" onclick="submitScore()">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== 排行榜系統 =====
+        class Leaderboard {
+            constructor() {
+                this.storageKey = 'bobble_leaderboard';
+                this.maxEntries = 10;
+                this.scores = this.load();
+                this.pendingScore = null;
+            }
+
+            load() {
+                try {
+                    const data = localStorage.getItem(this.storageKey);
+                    return data ? JSON.parse(data) : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            save() {
+                try {
+                    localStorage.setItem(this.storageKey, JSON.stringify(this.scores));
+                } catch (e) {
+                    console.log('無法儲存排行榜');
+                }
+            }
+
+            getHighScore() {
+                return this.scores.length > 0 ? this.scores[0].score : 0;
+            }
+
+            isHighScore(score) {
+                if (score <= 0) return false;
+                if (this.scores.length < this.maxEntries) return true;
+                return score > this.scores[this.scores.length - 1].score;
+            }
+
+            getRank(score) {
+                for (let i = 0; i < this.scores.length; i++) {
+                    if (score > this.scores[i].score) {
+                        return i + 1;
+                    }
+                }
+                return this.scores.length + 1;
+            }
+
+            addScore(name, score, level) {
+                const entry = {
+                    name: name || '匿名玩家',
+                    score: score,
+                    level: level,
+                    date: new Date().toLocaleDateString('zh-TW')
+                };
+
+                this.scores.push(entry);
+                this.scores.sort((a, b) => b.score - a.score);
+                this.scores = this.scores.slice(0, this.maxEntries);
+                this.save();
+
+                return this.scores.indexOf(entry);
+            }
+
+            clear() {
+                this.scores = [];
+                this.save();
+            }
+
+            getScores() {
+                return this.scores;
+            }
+        }
+
+        // 排行榜實例
+        const leaderboard = new Leaderboard();
+
+        // 顯示排行榜
+        function showLeaderboard(highlightIndex = -1) {
+            const overlay = document.getElementById('leaderboardOverlay');
+            const list = document.getElementById('leaderboardList');
+
+            const scores = leaderboard.getScores();
+
+            if (scores.length === 0) {
+                list.innerHTML = '<div class="leaderboard-empty">還沒有任何紀錄，開始遊戲吧！</div>';
+            } else {
+                list.innerHTML = scores.map((entry, index) => {
+                    const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : 'normal';
+                    const topClass = index < 3 ? 'top-3' : '';
+                    const newClass = index === highlightIndex ? 'new-record' : '';
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+
+                    return `
+                        <li class="leaderboard-item ${topClass} ${newClass}">
+                            <span class="leaderboard-rank ${rankClass}">${medal}</span>
+                            <div class="leaderboard-info">
+                                <div class="leaderboard-name">${entry.name}</div>
+                                <div class="leaderboard-date">Lv.${entry.level} · ${entry.date}</div>
+                            </div>
+                            <span class="leaderboard-score">${entry.score}</span>
+                        </li>
+                    `;
+                }).join('');
+            }
+
+            overlay.classList.add('show');
+        }
+
+        // 隱藏排行榜
+        function hideLeaderboard() {
+            document.getElementById('leaderboardOverlay').classList.remove('show');
+        }
+
+        // 清除排行榜
+        function clearLeaderboard() {
+            if (confirm('確定要清除所有排行榜紀錄嗎？')) {
+                leaderboard.clear();
+                updateHighScoreDisplay();
+                showLeaderboard();
+            }
+        }
+
+        // 顯示名字輸入
+        function showNameInput(score) {
+            leaderboard.pendingScore = score;
+            document.getElementById('nameInputScore').textContent = `分數: ${score}`;
+            document.getElementById('playerNameInput').value = '';
+            document.getElementById('nameInputOverlay').classList.add('show');
+            document.getElementById('playerNameInput').focus();
+        }
+
+        // 提交分數
+        function submitScore() {
+            const name = document.getElementById('playerNameInput').value.trim() || '匿名玩家';
+            const score = leaderboard.pendingScore;
+
+            if (score !== null) {
+                const rank = leaderboard.addScore(name, score, game.level);
+                updateHighScoreDisplay();
+                document.getElementById('nameInputOverlay').classList.remove('show');
+                showLeaderboard(rank);
+                leaderboard.pendingScore = null;
+            }
+        }
+
+        // 更新最高分顯示
+        function updateHighScoreDisplay() {
+            document.getElementById('highScore').textContent = leaderboard.getHighScore();
+        }
+
+        // Enter 鍵提交
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && document.getElementById('nameInputOverlay').classList.contains('show')) {
+                submitScore();
+            }
+            if (e.key === 'Escape') {
+                hideLeaderboard();
+            }
+        });
+
+        // ===== 音效系統 =====
+        class SoundManager {
+            constructor() {
+                this.audioContext = null;
+                this.enabled = true;
+                this.initialized = false;
+            }
+
+            init() {
+                if (this.initialized) return;
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.initialized = true;
+                } catch (e) {
+                    console.log('Web Audio API not supported');
+                    this.enabled = false;
+                }
+            }
+
+            // 發射音效
+            playShoot() {
+                if (!this.enabled || !this.audioContext) return;
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.audioContext.destination);
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.audioContext.currentTime + 0.1);
+
+                gain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.15);
+
+                osc.start(this.audioContext.currentTime);
+                osc.stop(this.audioContext.currentTime + 0.15);
+            }
+
+            // 碰撞/附著音效
+            playAttach() {
+                if (!this.enabled || !this.audioContext) return;
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.audioContext.destination);
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, this.audioContext.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
+
+                gain.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+
+                osc.start(this.audioContext.currentTime);
+                osc.stop(this.audioContext.currentTime + 0.1);
+            }
+
+            // 牆壁反彈音效
+            playBounce() {
+                if (!this.enabled || !this.audioContext) return;
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.audioContext.destination);
+
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, this.audioContext.currentTime);
+
+                gain.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.05);
+
+                osc.start(this.audioContext.currentTime);
+                osc.stop(this.audioContext.currentTime + 0.05);
+            }
+
+            // 消除音效 (連續音符)
+            playPop(count = 1) {
+                if (!this.enabled || !this.audioContext) return;
+
+                const baseFreq = 523.25; // C5
+                const notes = [1, 1.25, 1.5, 1.75, 2]; // 音階比例
+
+                for (let i = 0; i < Math.min(count, 5); i++) {
+                    setTimeout(() => {
+                        const osc = this.audioContext.createOscillator();
+                        const gain = this.audioContext.createGain();
+
+                        osc.connect(gain);
+                        gain.connect(this.audioContext.destination);
+
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(baseFreq * notes[i], this.audioContext.currentTime);
+
+                        gain.gain.setValueAtTime(0.25, this.audioContext.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.15);
+
+                        osc.start(this.audioContext.currentTime);
+                        osc.stop(this.audioContext.currentTime + 0.15);
+                    }, i * 50);
+                }
+            }
+
+            // 掉落音效
+            playDrop(count = 1) {
+                if (!this.enabled || !this.audioContext) return;
+
+                for (let i = 0; i < Math.min(count, 3); i++) {
+                    setTimeout(() => {
+                        const osc = this.audioContext.createOscillator();
+                        const gain = this.audioContext.createGain();
+
+                        osc.connect(gain);
+                        gain.connect(this.audioContext.destination);
+
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(800 - i * 100, this.audioContext.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.3);
+
+                        gain.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+
+                        osc.start(this.audioContext.currentTime);
+                        osc.stop(this.audioContext.currentTime + 0.3);
+                    }, i * 100);
+                }
+            }
+
+            // 遊戲結束音效
+            playGameOver() {
+                if (!this.enabled || !this.audioContext) return;
+
+                const notes = [400, 350, 300, 250];
+                notes.forEach((freq, i) => {
+                    setTimeout(() => {
+                        const osc = this.audioContext.createOscillator();
+                        const gain = this.audioContext.createGain();
+
+                        osc.connect(gain);
+                        gain.connect(this.audioContext.destination);
+
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(freq, this.audioContext.currentTime);
+
+                        gain.gain.setValueAtTime(0.2, this.audioContext.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+
+                        osc.start(this.audioContext.currentTime);
+                        osc.stop(this.audioContext.currentTime + 0.3);
+                    }, i * 200);
+                });
+            }
+
+            // 升級音效
+            playLevelUp() {
+                if (!this.enabled || !this.audioContext) return;
+
+                const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+                notes.forEach((freq, i) => {
+                    setTimeout(() => {
+                        const osc = this.audioContext.createOscillator();
+                        const gain = this.audioContext.createGain();
+
+                        osc.connect(gain);
+                        gain.connect(this.audioContext.destination);
+
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, this.audioContext.currentTime);
+
+                        gain.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+
+                        osc.start(this.audioContext.currentTime);
+                        osc.stop(this.audioContext.currentTime + 0.2);
+                    }, i * 100);
+                });
+            }
+
+            toggle() {
+                this.enabled = !this.enabled;
+                return this.enabled;
+            }
+        }
+
+        // ===== 粒子系統 =====
+        class Particle {
+            constructor(x, y, color, type = 'explode') {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.type = type;
+
+                if (type === 'explode') {
+                    // 爆炸粒子 - 向四周擴散
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 4;
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                    this.radius = 3 + Math.random() * 5;
+                    this.life = 1;
+                    this.decay = 0.02 + Math.random() * 0.02;
+                    this.gravity = 0.1;
+                } else if (type === 'drop') {
+                    // 掉落粒子 - 向下掉落
+                    this.vx = (Math.random() - 0.5) * 3;
+                    this.vy = 2 + Math.random() * 3;
+                    this.radius = 4 + Math.random() * 6;
+                    this.life = 1;
+                    this.decay = 0.015;
+                    this.gravity = 0.3;
+                } else if (type === 'sparkle') {
+                    // 閃爍粒子 - 小星星效果
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1 + Math.random() * 2;
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                    this.radius = 2 + Math.random() * 3;
+                    this.life = 1;
+                    this.decay = 0.03 + Math.random() * 0.02;
+                    this.gravity = 0;
+                }
+
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.life -= this.decay;
+                this.rotation += this.rotationSpeed;
+                this.radius *= 0.98;
+                return this.life > 0 && this.radius > 0.5;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                if (this.type === 'sparkle') {
+                    // 星星形狀
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    for (let i = 0; i < 4; i++) {
+                        const angle = (i / 4) * Math.PI * 2;
+                        const r = i % 2 === 0 ? this.radius : this.radius * 0.4;
+                        ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // 圓形粒子帶漸層
+                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.radius);
+                    gradient.addColorStop(0, this.color);
+                    gradient.addColorStop(0.5, this.color);
+                    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class ParticleSystem {
+            constructor() {
+                this.particles = [];
+            }
+
+            // 泡泡爆炸效果
+            explode(x, y, color, count = 12) {
+                for (let i = 0; i < count; i++) {
+                    this.particles.push(new Particle(x, y, color, 'explode'));
+                }
+                // 添加一些白色閃爍
+                for (let i = 0; i < 5; i++) {
+                    this.particles.push(new Particle(x, y, '#ffffff', 'sparkle'));
+                }
+            }
+
+            // 泡泡掉落效果
+            drop(x, y, color, count = 8) {
+                for (let i = 0; i < count; i++) {
+                    this.particles.push(new Particle(x, y, color, 'drop'));
+                }
+            }
+
+            // 連鎖爆炸效果（多個泡泡同時爆炸）
+            chainExplode(bubbles, delay = 30) {
+                bubbles.forEach((bubble, index) => {
+                    setTimeout(() => {
+                        this.explode(bubble.x, bubble.y, bubble.color, 15);
+                    }, index * delay);
+                });
+            }
+
+            update() {
+                this.particles = this.particles.filter(p => p.update());
+            }
+
+            draw(ctx) {
+                this.particles.forEach(p => p.draw(ctx));
+            }
+
+            clear() {
+                this.particles = [];
+            }
+        }
+
+        // 泡泡顏色配置（高對比度 - 6色）
+        const BUBBLE_COLORS = [
+            '#E74C3C', // 紅色
+            '#F39C12', // 橙色
+            '#F1C40F', // 黃色
+            '#27AE60', // 綠色
+            '#3498DB', // 藍色
+            '#9B59B6', // 紫色
+        ];
+
+        // 遊戲配置
+        const CONFIG = {
+            bubbleRadius: 20,
+            rows: 10,
+            cols: 12,
+            shooterY: 560,
+            minMatchCount: 3,
+            pointsPerBubble: 10,
+            pointsPerDrop: 20,
+        };
+
+        class Bubble {
+            constructor(x, y, color, row = -1, col = -1) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = CONFIG.bubbleRadius;
+                this.row = row;
+                this.col = col;
+                this.vx = 0;
+                this.vy = 0;
+                this.isMoving = false;
+            }
+
+            draw(ctx) {
+                // 泡泡主體
+                const gradient = ctx.createRadialGradient(
+                    this.x - this.radius * 0.3,
+                    this.y - this.radius * 0.3,
+                    0,
+                    this.x,
+                    this.y,
+                    this.radius
+                );
+                gradient.addColorStop(0, '#ffffff');
+                gradient.addColorStop(0.3, this.color);
+                gradient.addColorStop(1, this.darkenColor(this.color, 30));
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // 高光效果
+                ctx.beginPath();
+                ctx.arc(
+                    this.x - this.radius * 0.3,
+                    this.y - this.radius * 0.3,
+                    this.radius * 0.2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.fill();
+            }
+
+            darkenColor(color, percent) {
+                const num = parseInt(color.replace('#', ''), 16);
+                const amt = Math.round(2.55 * percent);
+                const R = Math.max((num >> 16) - amt, 0);
+                const G = Math.max(((num >> 8) & 0x00ff) - amt, 0);
+                const B = Math.max((num & 0x0000ff) - amt, 0);
+                return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+            }
+
+            update() {
+                if (this.isMoving) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                }
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.previewCanvas = document.getElementById('nextBubblePreview');
+                this.previewCtx = this.previewCanvas.getContext('2d');
+
+                this.grid = [];
+                this.currentBubble = null;
+                this.nextBubble = null;
+                this.score = 0;
+                this.level = 1;
+                this.isPaused = false;
+                this.isGameOver = false;
+                this.aimAngle = -Math.PI / 2;
+
+                this.offsetX = (this.canvas.width - CONFIG.cols * CONFIG.bubbleRadius * 2) / 2 + CONFIG.bubbleRadius;
+
+                // 初始化音效和粒子系統
+                this.sound = new SoundManager();
+                this.particles = new ParticleSystem();
+
+                this.init();
+                this.setupEventListeners();
+                this.gameLoop();
+            }
+
+            init() {
+                this.grid = [];
+                this.score = 0;
+                this.level = 1;
+                this.isGameOver = false;
+                this.isPaused = false;
+
+                // 清除粒子
+                this.particles.clear();
+
+                document.getElementById('score').textContent = '0';
+                document.getElementById('level').textContent = '1';
+                document.getElementById('gameOverOverlay').classList.remove('show');
+
+                // 初始化泡泡網格
+                const initialRows = 5;
+                for (let row = 0; row < CONFIG.rows; row++) {
+                    this.grid[row] = [];
+                    for (let col = 0; col < CONFIG.cols; col++) {
+                        if (row < initialRows) {
+                            // 判斷偏移行
+                            const isOffsetRow = row % 2 === 1;
+                            const maxCols = isOffsetRow ? CONFIG.cols - 1 : CONFIG.cols;
+
+                            if (col < maxCols) {
+                                const pos = this.getPositionFromGrid(row, col);
+                                const color = BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
+                                this.grid[row][col] = new Bubble(pos.x, pos.y, color, row, col);
+                            } else {
+                                this.grid[row][col] = null;
+                            }
+                        } else {
+                            this.grid[row][col] = null;
+                        }
+                    }
+                }
+
+                this.nextBubble = this.createRandomBubble();
+                this.loadNextBubble();
+            }
+
+            getPositionFromGrid(row, col) {
+                const isOffsetRow = row % 2 === 1;
+                const offset = isOffsetRow ? CONFIG.bubbleRadius : 0;
+                return {
+                    x: this.offsetX + col * CONFIG.bubbleRadius * 2 + offset,
+                    y: CONFIG.bubbleRadius + row * CONFIG.bubbleRadius * 1.73
+                };
+            }
+
+            getGridFromPosition(x, y) {
+                const row = Math.round((y - CONFIG.bubbleRadius) / (CONFIG.bubbleRadius * 1.73));
+                const isOffsetRow = row % 2 === 1;
+                const offset = isOffsetRow ? CONFIG.bubbleRadius : 0;
+                const col = Math.round((x - this.offsetX - offset) / (CONFIG.bubbleRadius * 2));
+                return { row, col };
+            }
+
+            createRandomBubble() {
+                const color = BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
+                return new Bubble(this.canvas.width / 2, CONFIG.shooterY, color);
+            }
+
+            loadNextBubble() {
+                this.currentBubble = this.nextBubble;
+                this.currentBubble.x = this.canvas.width / 2;
+                this.currentBubble.y = CONFIG.shooterY;
+                this.currentBubble.isMoving = false;
+                this.currentBubble.vx = 0;
+                this.currentBubble.vy = 0;
+
+                this.nextBubble = this.createRandomBubble();
+                this.drawNextBubblePreview();
+            }
+
+            drawNextBubblePreview() {
+                this.previewCtx.clearRect(0, 0, 40, 40);
+                const previewBubble = new Bubble(20, 20, this.nextBubble.color);
+                previewBubble.radius = 16;
+                previewBubble.draw(this.previewCtx);
+            }
+
+            setupEventListeners() {
+                this.canvas.addEventListener('mousemove', (e) => {
+                    if (this.isPaused || this.isGameOver) return;
+                    const rect = this.canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+
+                    const dx = mouseX - this.canvas.width / 2;
+                    const dy = mouseY - CONFIG.shooterY;
+
+                    this.aimAngle = Math.atan2(dy, dx);
+                    // 限制角度範圍
+                    if (this.aimAngle > -0.1) this.aimAngle = -0.1;
+                    if (this.aimAngle < -Math.PI + 0.1) this.aimAngle = -Math.PI + 0.1;
+                });
+
+                this.canvas.addEventListener('click', () => {
+                    if (this.isPaused || this.isGameOver) return;
+                    // 初始化音效（需要用戶互動才能啟動）
+                    this.sound.init();
+                    this.shoot();
+                });
+            }
+
+            shoot() {
+                if (this.currentBubble.isMoving) return;
+
+                const speed = 15;
+                this.currentBubble.vx = Math.cos(this.aimAngle) * speed;
+                this.currentBubble.vy = Math.sin(this.aimAngle) * speed;
+                this.currentBubble.isMoving = true;
+
+                // 播放發射音效
+                this.sound.playShoot();
+            }
+
+            update() {
+                if (this.isPaused || this.isGameOver) return;
+
+                if (this.currentBubble && this.currentBubble.isMoving) {
+                    this.currentBubble.update();
+
+                    // 邊界反彈
+                    if (this.currentBubble.x <= CONFIG.bubbleRadius) {
+                        this.currentBubble.x = CONFIG.bubbleRadius;
+                        this.currentBubble.vx *= -1;
+                        this.sound.playBounce();
+                    }
+                    if (this.currentBubble.x >= this.canvas.width - CONFIG.bubbleRadius) {
+                        this.currentBubble.x = this.canvas.width - CONFIG.bubbleRadius;
+                        this.currentBubble.vx *= -1;
+                        this.sound.playBounce();
+                    }
+
+                    // 頂部碰撞
+                    if (this.currentBubble.y <= CONFIG.bubbleRadius) {
+                        this.currentBubble.y = CONFIG.bubbleRadius;
+                        this.snapBubbleToGrid();
+                        return;
+                    }
+
+                    // 與其他泡泡碰撞檢測
+                    for (let row = 0; row < CONFIG.rows; row++) {
+                        for (let col = 0; col < CONFIG.cols; col++) {
+                            const bubble = this.grid[row][col];
+                            if (bubble) {
+                                const dx = this.currentBubble.x - bubble.x;
+                                const dy = this.currentBubble.y - bubble.y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                                if (distance < CONFIG.bubbleRadius * 2) {
+                                    this.snapBubbleToGrid();
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            snapBubbleToGrid() {
+                const gridPos = this.getGridFromPosition(this.currentBubble.x, this.currentBubble.y);
+                let { row, col } = gridPos;
+
+                // 確保在有效範圍內
+                row = Math.max(0, Math.min(row, CONFIG.rows - 1));
+                const isOffsetRow = row % 2 === 1;
+                const maxCol = isOffsetRow ? CONFIG.cols - 2 : CONFIG.cols - 1;
+                col = Math.max(0, Math.min(col, maxCol));
+
+                // 如果位置已被佔用，找最近的空位
+                if (this.grid[row] && this.grid[row][col]) {
+                    const neighbors = this.getEmptyNeighbors(row, col);
+                    if (neighbors.length > 0) {
+                        // 找最近的空位
+                        let minDist = Infinity;
+                        let closest = neighbors[0];
+                        for (const n of neighbors) {
+                            const pos = this.getPositionFromGrid(n.row, n.col);
+                            const dx = pos.x - this.currentBubble.x;
+                            const dy = pos.y - this.currentBubble.y;
+                            const dist = dx * dx + dy * dy;
+                            if (dist < minDist) {
+                                minDist = dist;
+                                closest = n;
+                            }
+                        }
+                        row = closest.row;
+                        col = closest.col;
+                    }
+                }
+
+                // 確保 grid[row] 存在
+                if (!this.grid[row]) {
+                    this.grid[row] = [];
+                }
+
+                const pos = this.getPositionFromGrid(row, col);
+                this.currentBubble.x = pos.x;
+                this.currentBubble.y = pos.y;
+                this.currentBubble.row = row;
+                this.currentBubble.col = col;
+                this.currentBubble.isMoving = false;
+                this.currentBubble.vx = 0;
+                this.currentBubble.vy = 0;
+
+                this.grid[row][col] = this.currentBubble;
+
+                // 播放附著音效
+                this.sound.playAttach();
+
+                // 檢查匹配
+                this.checkMatches(row, col);
+
+                // 檢查遊戲結束
+                if (row >= CONFIG.rows - 2) {
+                    this.gameOver(false);
+                    return;
+                }
+
+                // 載入下一個泡泡
+                this.loadNextBubble();
+            }
+
+            getEmptyNeighbors(row, col) {
+                const neighbors = [];
+                const isOffsetRow = row % 2 === 1;
+
+                const directions = isOffsetRow
+                    ? [[-1, 0], [-1, 1], [0, -1], [0, 1], [1, 0], [1, 1]]
+                    : [[-1, -1], [-1, 0], [0, -1], [0, 1], [1, -1], [1, 0]];
+
+                for (const [dr, dc] of directions) {
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+
+                    if (newRow >= 0 && newRow < CONFIG.rows && newCol >= 0) {
+                        const isNewOffsetRow = newRow % 2 === 1;
+                        const maxCol = isNewOffsetRow ? CONFIG.cols - 2 : CONFIG.cols - 1;
+
+                        if (newCol <= maxCol) {
+                            if (!this.grid[newRow] || !this.grid[newRow][newCol]) {
+                                neighbors.push({ row: newRow, col: newCol });
+                            }
+                        }
+                    }
+                }
+
+                return neighbors;
+            }
+
+            getNeighbors(row, col) {
+                const neighbors = [];
+                const isOffsetRow = row % 2 === 1;
+
+                const directions = isOffsetRow
+                    ? [[-1, 0], [-1, 1], [0, -1], [0, 1], [1, 0], [1, 1]]
+                    : [[-1, -1], [-1, 0], [0, -1], [0, 1], [1, -1], [1, 0]];
+
+                for (const [dr, dc] of directions) {
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+
+                    if (newRow >= 0 && newRow < CONFIG.rows && newCol >= 0 && newCol < CONFIG.cols) {
+                        if (this.grid[newRow] && this.grid[newRow][newCol]) {
+                            neighbors.push({ row: newRow, col: newCol, bubble: this.grid[newRow][newCol] });
+                        }
+                    }
+                }
+
+                return neighbors;
+            }
+
+            checkMatches(startRow, startCol) {
+                const targetColor = this.grid[startRow][startCol].color;
+                const matched = [];
+                const visited = new Set();
+
+                // BFS 找同色相連泡泡
+                const queue = [{ row: startRow, col: startCol }];
+                visited.add(`${startRow},${startCol}`);
+
+                while (queue.length > 0) {
+                    const current = queue.shift();
+                    matched.push(current);
+
+                    const neighbors = this.getNeighbors(current.row, current.col);
+                    for (const neighbor of neighbors) {
+                        const key = `${neighbor.row},${neighbor.col}`;
+                        if (!visited.has(key) && neighbor.bubble.color === targetColor) {
+                            visited.add(key);
+                            queue.push({ row: neighbor.row, col: neighbor.col });
+                        }
+                    }
+                }
+
+                // 如果匹配數量達標，消除泡泡
+                if (matched.length >= CONFIG.minMatchCount) {
+                    // 收集要爆破的泡泡資訊
+                    const bubblesInfo = matched.map(({ row, col }) => ({
+                        x: this.grid[row][col].x,
+                        y: this.grid[row][col].y,
+                        color: this.grid[row][col].color
+                    }));
+
+                    // 清除泡泡
+                    for (const { row, col } of matched) {
+                        this.grid[row][col] = null;
+                    }
+
+                    // 播放消除音效和爆破動畫
+                    this.sound.playPop(matched.length);
+                    this.particles.chainExplode(bubblesInfo, 40);
+
+                    this.score += matched.length * CONFIG.pointsPerBubble;
+
+                    // 移除懸空泡泡
+                    const dropped = this.removeFloatingBubbles();
+                    this.score += dropped * CONFIG.pointsPerDrop;
+
+                    document.getElementById('score').textContent = this.score;
+
+                    // 檢查是否清空
+                    if (this.isGridEmpty()) {
+                        this.level++;
+                        document.getElementById('level').textContent = this.level;
+                        this.sound.playLevelUp();
+                        this.addNewRows();
+                    }
+                }
+            }
+
+            removeFloatingBubbles() {
+                // 從頂部找所有連接的泡泡
+                const connected = new Set();
+
+                // 從第一行開始 BFS
+                for (let col = 0; col < CONFIG.cols; col++) {
+                    if (this.grid[0] && this.grid[0][col]) {
+                        const queue = [{ row: 0, col }];
+                        connected.add(`0,${col}`);
+
+                        while (queue.length > 0) {
+                            const current = queue.shift();
+                            const neighbors = this.getNeighbors(current.row, current.col);
+
+                            for (const neighbor of neighbors) {
+                                const key = `${neighbor.row},${neighbor.col}`;
+                                if (!connected.has(key)) {
+                                    connected.add(key);
+                                    queue.push({ row: neighbor.row, col: neighbor.col });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 移除所有未連接的泡泡
+                let droppedCount = 0;
+                const droppedBubbles = [];
+
+                for (let row = 0; row < CONFIG.rows; row++) {
+                    if (!this.grid[row]) continue;
+                    for (let col = 0; col < CONFIG.cols; col++) {
+                        if (this.grid[row][col] && !connected.has(`${row},${col}`)) {
+                            // 收集掉落泡泡資訊
+                            droppedBubbles.push({
+                                x: this.grid[row][col].x,
+                                y: this.grid[row][col].y,
+                                color: this.grid[row][col].color
+                            });
+                            this.grid[row][col] = null;
+                            droppedCount++;
+                        }
+                    }
+                }
+
+                // 播放掉落音效和動畫
+                if (droppedCount > 0) {
+                    this.sound.playDrop(droppedCount);
+                    droppedBubbles.forEach((bubble, index) => {
+                        setTimeout(() => {
+                            this.particles.drop(bubble.x, bubble.y, bubble.color, 10);
+                        }, index * 50);
+                    });
+                }
+
+                return droppedCount;
+            }
+
+            isGridEmpty() {
+                for (let row = 0; row < CONFIG.rows; row++) {
+                    if (!this.grid[row]) continue;
+                    for (let col = 0; col < CONFIG.cols; col++) {
+                        if (this.grid[row][col]) return false;
+                    }
+                }
+                return true;
+            }
+
+            addNewRows() {
+                const newRows = 3;
+                for (let row = 0; row < newRows; row++) {
+                    this.grid[row] = [];
+                    for (let col = 0; col < CONFIG.cols; col++) {
+                        const isOffsetRow = row % 2 === 1;
+                        const maxCols = isOffsetRow ? CONFIG.cols - 1 : CONFIG.cols;
+
+                        if (col < maxCols) {
+                            const pos = this.getPositionFromGrid(row, col);
+                            const color = BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
+                            this.grid[row][col] = new Bubble(pos.x, pos.y, color, row, col);
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                // 清空畫布
+                this.ctx.fillStyle = '#0a1628';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // 繪製背景格線
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                this.ctx.lineWidth = 1;
+                for (let y = 0; y < this.canvas.height; y += 40) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.canvas.width, y);
+                    this.ctx.stroke();
+                }
+
+                // 繪製網格中的泡泡
+                for (let row = 0; row < CONFIG.rows; row++) {
+                    if (!this.grid[row]) continue;
+                    for (let col = 0; col < CONFIG.cols; col++) {
+                        if (this.grid[row][col]) {
+                            this.grid[row][col].draw(this.ctx);
+                        }
+                    }
+                }
+
+                // 繪製瞄準線
+                if (!this.currentBubble?.isMoving) {
+                    this.drawAimLine();
+                }
+
+                // 繪製當前泡泡
+                if (this.currentBubble) {
+                    this.currentBubble.draw(this.ctx);
+                }
+
+                // 繪製發射器
+                this.drawShooter();
+
+                // 繪製粒子效果
+                this.particles.draw(this.ctx);
+            }
+
+            drawAimLine() {
+                const startX = this.canvas.width / 2;
+                const startY = CONFIG.shooterY;
+
+                // 計算導引線路徑（包含反彈）
+                const path = this.calculateTrajectory(startX, startY, this.aimAngle);
+
+                // 繪製導引線
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([8, 6]);
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) {
+                    this.ctx.lineTo(path[i].x, path[i].y);
+                }
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+
+                // 在路徑上繪製小圓點標記
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                const dotSpacing = 40;
+                let traveled = 0;
+
+                for (let i = 1; i < path.length; i++) {
+                    const dx = path[i].x - path[i - 1].x;
+                    const dy = path[i].y - path[i - 1].y;
+                    const segmentLength = Math.sqrt(dx * dx + dy * dy);
+                    const segmentAngle = Math.atan2(dy, dx);
+
+                    while (traveled < segmentLength) {
+                        const dotX = path[i - 1].x + Math.cos(segmentAngle) * traveled;
+                        const dotY = path[i - 1].y + Math.sin(segmentAngle) * traveled;
+
+                        this.ctx.beginPath();
+                        this.ctx.arc(dotX, dotY, 3, 0, Math.PI * 2);
+                        this.ctx.fill();
+
+                        traveled += dotSpacing;
+                    }
+                    traveled -= segmentLength;
+                }
+
+                // 在終點繪製預測位置的泡泡輪廓
+                const endPoint = path[path.length - 1];
+                if (endPoint.y < CONFIG.shooterY - 50) {
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.setLineDash([5, 5]);
+                    this.ctx.beginPath();
+                    this.ctx.arc(endPoint.x, endPoint.y, CONFIG.bubbleRadius, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
+                }
+            }
+
+            calculateTrajectory(startX, startY, angle) {
+                const path = [{ x: startX, y: startY }];
+                let x = startX;
+                let y = startY;
+                let vx = Math.cos(angle);
+                let vy = Math.sin(angle);
+                const step = 5;
+                const maxLength = 800;
+                let totalLength = 0;
+
+                while (totalLength < maxLength && y > CONFIG.bubbleRadius) {
+                    x += vx * step;
+                    y += vy * step;
+                    totalLength += step;
+
+                    // 檢查左右邊界反彈
+                    if (x <= CONFIG.bubbleRadius) {
+                        x = CONFIG.bubbleRadius;
+                        vx *= -1;
+                        path.push({ x, y });
+                    } else if (x >= this.canvas.width - CONFIG.bubbleRadius) {
+                        x = this.canvas.width - CONFIG.bubbleRadius;
+                        vx *= -1;
+                        path.push({ x, y });
+                    }
+
+                    // 檢查是否碰到現有泡泡
+                    let hitBubble = false;
+                    for (let row = 0; row < CONFIG.rows && !hitBubble; row++) {
+                        if (!this.grid[row]) continue;
+                        for (let col = 0; col < CONFIG.cols && !hitBubble; col++) {
+                            const bubble = this.grid[row][col];
+                            if (bubble) {
+                                const dx = x - bubble.x;
+                                const dy = y - bubble.y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                if (distance < CONFIG.bubbleRadius * 2) {
+                                    // 找到最近的網格位置
+                                    const gridPos = this.getGridFromPosition(x, y);
+                                    const snapPos = this.getPositionFromGrid(
+                                        Math.max(0, Math.min(gridPos.row, CONFIG.rows - 1)),
+                                        Math.max(0, gridPos.col)
+                                    );
+                                    path.push({ x: snapPos.x, y: snapPos.y });
+                                    hitBubble = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (hitBubble) break;
+
+                    // 檢查頂部邊界
+                    if (y <= CONFIG.bubbleRadius) {
+                        y = CONFIG.bubbleRadius;
+                        const gridPos = this.getGridFromPosition(x, y);
+                        const snapPos = this.getPositionFromGrid(0, Math.max(0, gridPos.col));
+                        path.push({ x: snapPos.x, y: snapPos.y });
+                        break;
+                    }
+                }
+
+                // 如果沒有碰到任何東西，添加最後一個點
+                if (path.length === 1 || (path[path.length - 1].x !== x || path[path.length - 1].y !== y)) {
+                    if (y > CONFIG.bubbleRadius) {
+                        path.push({ x, y });
+                    }
+                }
+
+                return path;
+            }
+
+            drawShooter() {
+                const x = this.canvas.width / 2;
+                const y = CONFIG.shooterY;
+
+                // 發射器底座
+                this.ctx.fillStyle = '#2d4a6f';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y + 15, 35, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // 發射器箭頭
+                this.ctx.save();
+                this.ctx.translate(x, y);
+                this.ctx.rotate(this.aimAngle);
+
+                this.ctx.fillStyle = '#4a7c9b';
+                this.ctx.beginPath();
+                this.ctx.moveTo(30, 0);
+                this.ctx.lineTo(0, -10);
+                this.ctx.lineTo(0, 10);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                this.ctx.restore();
+
+                // 繪製下一個泡泡預覽（在左側）
+                if (this.nextBubble) {
+                    // 背景框
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.ctx.beginPath();
+                    this.ctx.roundRect(60, y - 25, 80, 50, 10);
+                    this.ctx.fill();
+
+                    // 文字標籤
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    this.ctx.font = '12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('下一個', 100, y - 8);
+
+                    // 繪製下一個泡泡
+                    const previewBubble = new Bubble(100, y + 12, this.nextBubble.color);
+                    previewBubble.radius = 16;
+                    previewBubble.draw(this.ctx);
+                }
+
+                // 繪製當前泡泡顏色指示（在右側）
+                if (this.currentBubble && !this.currentBubble.isMoving) {
+                    // 背景框
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.ctx.beginPath();
+                    this.ctx.roundRect(this.canvas.width - 140, y - 25, 80, 50, 10);
+                    this.ctx.fill();
+
+                    // 文字標籤
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    this.ctx.font = '12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('當前', this.canvas.width - 100, y - 8);
+
+                    // 繪製當前泡泡顏色指示
+                    const currentPreview = new Bubble(this.canvas.width - 100, y + 12, this.currentBubble.color);
+                    currentPreview.radius = 16;
+                    currentPreview.draw(this.ctx);
+                }
+            }
+
+            gameOver(isWin) {
+                this.isGameOver = true;
+                const overlay = document.getElementById('gameOverOverlay');
+                const text = document.getElementById('gameOverText');
+                const scoreDisplay = document.getElementById('finalScore');
+
+                // 播放遊戲結束音效
+                if (!isWin) {
+                    this.sound.playGameOver();
+                }
+
+                // 檢查是否可以上排行榜
+                if (this.score > 0 && leaderboard.isHighScore(this.score)) {
+                    // 延遲一下再顯示輸入框，讓玩家看到最終畫面
+                    setTimeout(() => {
+                        showNameInput(this.score);
+                    }, 500);
+
+                    text.textContent = '新紀錄！';
+                    scoreDisplay.textContent = `分數: ${this.score} (第 ${leaderboard.getRank(this.score)} 名)`;
+                } else {
+                    text.textContent = isWin ? '恭喜過關!' : '遊戲結束!';
+                    scoreDisplay.textContent = `最終分數: ${this.score}`;
+                }
+
+                overlay.classList.add('show');
+            }
+
+            restart() {
+                this.init();
+            }
+
+            togglePause() {
+                this.isPaused = !this.isPaused;
+            }
+
+            gameLoop() {
+                this.update();
+                // 粒子系統獨立更新（不受暫停影響）
+                this.particles.update();
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        // 啟動遊戲
+        const game = new Game();
+
+        // 初始化最高分顯示
+        updateHighScoreDisplay();
+
+        // 音效開關
+        function toggleSound() {
+            const enabled = game.sound.toggle();
+            document.getElementById('soundBtn').textContent = enabled ? '音效: 開' : '音效: 關';
+        }
+    </script>
+</body>
+</html>
